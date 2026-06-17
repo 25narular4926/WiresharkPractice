@@ -1,0 +1,24 @@
+# Git line-ending / binary handling for this project.
+# This file is committed, so every clone (incl. other machines) inherits it —
+# it overrides each machine's core.autocrlf and prevents the binary-corruption
+# that broke capture_5005.pcapng / requirements.txt when copied.
+
+# Default: let git auto-detect text and normalize to LF in the repo, checking
+# out the platform-native ending on each machine.
+* text=auto
+
+# Source files are text — keep them LF in the repo regardless of OS.
+*.py   text
+*.md   text
+*.dbc  text
+*.asc  text
+*.txt  text
+
+# Binary files git must NEVER convert (the "binary" macro = -text -diff).
+# Without this, autocrlf rewrites bytes like 0a/0d inside them and corrupts
+# the file (a .pcapng starts with the bytes 0a 0d 0d 0a, so it's hit hard).
+*.pcapng binary
+*.pcap   binary
+*.blf    binary
+*.mf4    binary
+*.mdf    binary

@@ -1,0 +1,17 @@
+# Virtual environment
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Captures / logs — regenerable artifacts, not source.
+# Recreate captures with dumpcap (see WARMUP.md / PHASE4.md) and the sample
+# logs with `python make_sample_logs.py`. The .gitattributes binary rules still
+# protect these if you ever choose to track them.
+*.pcap
+*.pcapng
+engine.blf
+engine.asc
+engine_signals.mf4
