@@ -259,11 +259,19 @@ for the raw logs, and a channel listing for the MF4.
 #### `can_udp_bridge.py` — replay a CAN log over UDP
 
 **Purpose:** the payoff — read a log and replay every frame as a UDP packet so
-it can be captured/inspected in Wireshark. Joins all three seams.
+it can be captured/inspected in Wireshark. Joins all three seams. Handles
+**both** Phase 3 log flavors.
 
 **How it works:**
-- `iter_frames(path)` wraps `can.LogReader` (the Phase 3 reader) and yields
-  `(timestamp, arbitration_id, data)` for each real frame.
+- For **BLF/ASC** (raw frames): `iter_frames(path)` wraps `can.LogReader` (the
+  Phase 3 reader) and yields `(timestamp, arbitration_id, data)` per frame —
+  no DBC needed, the frames are already raw bytes.
+- For **MF4/MDF** (decoded signals): `iter_frames_from_mdf(path, db)` reads the
+  named signal channels with asammdf and **re-encodes** them into CAN bytes via
+  the DBC (`msg.encode(...)`, the inverse of Phase 2's decode) — because an MF4
+  stores values, not frames, so the CAN id has to be recovered from the DBC.
+  The re-encoded frames come out byte-identical to `engine.blf`. Needs `--dbc`
+  (default `sample.dbc`); `main` picks this path by the `.mf4`/`.mdf` suffix.
 - `replay(...)` opens a UDP socket and, for each frame, **paces then sends**:
   - default: sleeps the gap between consecutive log timestamps (so it replays at
     real speed); `--speed N` divides that gap (N× faster); `--interval S`
@@ -278,6 +286,7 @@ it can be captured/inspected in Wireshark. Joins all three seams.
 ```bash
 python can_udp_bridge.py                      # replay engine.blf, real-time
 python can_udp_bridge.py engine.asc           # the ASC log instead
+python can_udp_bridge.py engine_signals.mf4   # MF4 signals -> re-encoded frames
 python can_udp_bridge.py engine.blf --speed 5 # 5x faster
 python can_udp_bridge.py engine.blf --interval 0.5   # fixed 0.5s gap
 python can_udp_bridge.py engine.blf --loop 3  # replay 3 times

@@ -44,13 +44,15 @@ and inspect it in Wireshark.
    trace as BLF/ASC (raw frames) and MF4 (decoded signals); `read_logs.py`
    iterates them, decoding raw frames back to signals via the Phase 2 DBC and
    listing the MF4 channels. See PHASE3.md.
-4. **[DONE] Bridge CAN → UDP → Wireshark** — `can_udp_bridge.py` reads a BLF/ASC
-   log (Phase 3 reader), packs each frame's `(can_id, data)` into the Phase 1
-   `>I d I 8s` payload, and replays it to `127.0.0.1:5005`, paced by the log's
-   own timestamps (`--speed`/`--interval`/`--loop`). `read_capture.py --dbc`
-   decodes a capture back to signals. Verified end-to-end: BLF → UDP → dumpcap
-   loopback capture (8/8, 0 dropped) → DBC decode reproduces the Phase 3 ramp.
-   See PHASE4.md.
+4. **[DONE] Bridge CAN → UDP → Wireshark** — `can_udp_bridge.py` reads a log,
+   packs each frame's `(can_id, data)` into the Phase 1 `>I d I 8s` payload, and
+   replays it to `127.0.0.1:5005`, paced by the log's own timestamps
+   (`--speed`/`--interval`/`--loop`). Handles both Phase 3 flavors: BLF/ASC raw
+   frames sent as-is, and MF4/MDF decoded signals re-encoded back into CAN bytes
+   via the DBC (`--dbc`, the inverse of Phase 2). `read_capture.py --dbc` decodes
+   a capture back to signals. Verified end-to-end: BLF *and* MF4 → UDP → dumpcap
+   loopback capture (8/8, 0 dropped) → DBC decode reproduces the Phase 3 ramp;
+   the MF4-re-encoded frames are byte-identical to `engine.blf`. See PHASE4.md.
 
 **All four phases are complete — the project goal is met.** Possible
 extensions: multiple CAN ids / a richer DBC, a live DBC-decoding receiver,

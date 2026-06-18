@@ -12,13 +12,32 @@ engine.blf  --(python-can, Phase 3)-->  (can_id, data) frames
 
 ## Files
 
-- `can_udp_bridge.py` — reads a BLF/ASC log with `can.LogReader` (the Phase 3
-  reader), packs each frame's `arbitration_id` + `data` into the Phase 1
-  `>I d I 8s` payload, and sends it to `127.0.0.1:5005`. Paced by the log's own
-  timestamps by default (`--speed` scales, `--interval` overrides with a fixed
-  gap, `--loop` repeats).
+- `can_udp_bridge.py` — reads a log, packs each frame's `arbitration_id` +
+  `data` into the Phase 1 `>I d I 8s` payload, and sends it to
+  `127.0.0.1:5005`. Handles **both Phase 3 log flavors**:
+  - **BLF / ASC** (raw frames) via `can.LogReader` — sent as-is, no DBC needed.
+  - **MF4 / MDF** (decoded signals) via `asammdf` — re-encoded back into CAN
+    bytes with the DBC (`--dbc`, default `sample.dbc`), the inverse of Phase 2.
+  Paced by the log's own timestamps by default (`--speed` scales, `--interval`
+  overrides with a fixed gap, `--loop` repeats).
 - `read_capture.py` — now takes `--dbc [file]`: after unpacking each captured
   frame it DBC-decodes `can_id` + `data` back into signals (Phase 2 seam).
+
+## Two log flavors, two paths into the pipeline
+
+Phase 3 produces two kinds of log, and the bridge feeds both onto the wire:
+
+| log         | holds            | bridge path                              | DBC?    |
+|-------------|------------------|------------------------------------------|---------|
+| `engine.blf`/`.asc` | raw CAN frames  | `(can_id, data)` sent directly    | no      |
+| `engine_signals.mf4`| decoded signals | re-encode signals → bytes, then send | **yes** |
+
+The MF4 stores named, scaled channels (EngineSpeed, CoolantTemp, …) — the CAN
+id is gone. `iter_frames_from_mdf` recovers it from the DBC: it groups the MF4
+channels by the message whose signals they are, then for each timestamp row
+calls `msg.encode(values)` to rebuild the 8 data bytes. Encoding is the exact
+inverse of the Phase 2 decode, so the re-encoded frames come out **byte-identical
+to `engine.blf`** (`800c640001450000` … `403880d201450000`).
 
 ## Wire format unchanged
 
@@ -37,6 +56,7 @@ Activate the venv first (see CLAUDE.md), then:
 python can_udp_bridge.py
 
 python can_udp_bridge.py engine.asc          # ASC log instead of BLF
+python can_udp_bridge.py engine_signals.mf4  # MF4 signals -> re-encoded frames
 python can_udp_bridge.py engine.blf --speed 5    # 5x faster than recorded
 python can_udp_bridge.py engine.blf --interval 0.5   # fixed 0.5s gap
 python can_udp_bridge.py engine.blf --loop 3     # replay 3 times
@@ -91,6 +111,9 @@ back to the original Phase 3 ramp — log → UDP → capture → signals round-
 - BLF replay → UDP → loopback capture: 8/8 frames, 0 dropped. ✓
 - `read_capture.py --dbc` decodes the capture to the original signals. ✓
 - ASC reader and `--speed` / `--interval` / `--loop` pacing modes work. ✓
+- **MF4 signals re-encoded → UDP → capture: 8/8, 0 dropped; re-encoded frames
+  are byte-identical to `engine.blf` and decode back to the same ramp.** ✓
 
-This completes the project goal: a recorded vehicle-bus log parsed in Python,
-each CAN frame repackaged as a UDP datagram, sent, and inspected in Wireshark.
+This completes the project goal: a recorded vehicle-bus log — whether it stores
+raw CAN frames (BLF/ASC) or decoded signals (MF4/MDF) — parsed in Python, each
+CAN frame repackaged as a UDP datagram, sent, and inspected in Wireshark.
