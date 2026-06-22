@@ -21,6 +21,7 @@ DEMO_FRAME_ID = 0x100   # 256 = EngineData
 
 def list_messages(db):
     """Print every message and its signals, like a DBC table of contents."""
+    # REVIEW [function]: pure reporting; the readable index of what the DBC defines.
     print("=== Messages in DBC ===")
     for msg in db.messages:
         print(f"  {msg.name}  id=0x{msg.frame_id:X} ({msg.frame_id})  "
@@ -36,6 +37,8 @@ def list_messages(db):
 
 def decode_demo(db):
     """Encode a known set of values, then decode the bytes back."""
+    # REVIEW [function]: proves encode and decode are inverses -- the property the
+    # Phase 4 MF4 re-encode path relies on.
     msg = db.get_message_by_frame_id(DEMO_FRAME_ID)
 
     # The engineering values we want on the wire.
@@ -60,6 +63,8 @@ def decode_demo(db):
     print()
 
     # Round-trip sanity check: re-encoding the decoded values must match.
+    # REVIEW: this is an `assert` -- stripped under `python -O`. Fine for a demo;
+    # promote to a real check/raise if this ever becomes a test.
     assert msg.encode(dict(decoded)) == data, "round-trip mismatch!"
     print("round-trip OK: encode(decode(x)) == x\n")
 
@@ -79,6 +84,9 @@ def byte_order_demo(db):
     print("=== Byte-order gotcha (GearRatio, Motorola @0) ===")
     print(f"  full frame      : {data.hex()}")
     print(f"  GearRatio bytes : {b[4]:02x} {b[5]:02x}  (byte4=MSB, byte5=LSB)")
+    # REVIEW: byte indices 4/5 are HARD-CODED to GearRatio's current DBC layout
+    # (start bit 39, bytes 4-5). If sample.dbc changes, this hand-rolled endian
+    # math goes stale silently -- it doesn't read the start bit from the DBC.
     big = (b[4] << 8) | b[5]
     little = (b[5] << 8) | b[4]
     print(f"  read big-endian : 0x{big:04x} = {big} raw -> {big * 0.01:.2f}  <- correct")
@@ -93,6 +101,8 @@ def decode_udp_frame(db, can_id, data):
     This is the seam Phase 4 will use to decode replayed frames. Returns the
     {signal: value} dict, or None if the id isn't in the DBC.
     """
+    # REVIEW [function]: THE Phase 2 seam in one call -- (can_id, data) -> signals.
+    # Returns None on an unknown id rather than raising (caller-friendly).
     try:
         msg = db.get_message_by_frame_id(can_id)
     except KeyError:
@@ -103,6 +113,8 @@ def decode_udp_frame(db, can_id, data):
 def phase1_seam_demo(db):
     """Pretend a UDP packet just arrived; decode its can_id + data."""
     # These are the exact values our struct ">I d I 8s" would yield.
+    # REVIEW: this hex is a STANDALONE sample, not a row of the Phase 4 ramp in
+    # engine.blf -- don't assume the two match.
     can_id = 0x100
     data = bytes.fromhex("1027826401450000")
     print("=== Phase 1 seam (UDP can_id + data -> signals) ===")

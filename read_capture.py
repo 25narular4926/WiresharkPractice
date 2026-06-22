@@ -24,8 +24,11 @@ PACKET_FORMAT = ">I d I 8s"   # must match udp_sender.py / udp_receiver.py
 
 
 def main(path, dbc_path=None):
-    # Lazily load the DBC only when decoding is requested (keeps scapy-only use
-    # dependency-light and identical to the original Phase 1 behavior).
+    # REVIEW [function]: load a pcapng, and for each IP+UDP packet peel the
+    # payload, unpack the 24 bytes, and (with --dbc) decode to signals. This is
+    # the capture-side twin of udp_receiver.main -- same unpack, same decode.
+    # REVIEW: lazy DBC import -- only paid when --dbc is given, so the plain
+    # unpack path stays scapy-only / dependency-light.
     db = None
     if dbc_path:
         import cantools
@@ -34,12 +37,16 @@ def main(path, dbc_path=None):
     packets = rdpcap(path)
     print(f"{path}: {len(packets)} packet(s)\n")
     for i, pkt in enumerate(packets):
+        # REVIEW: non-IP/UDP packets are silently skipped -- a malformed capture
+        # just yields fewer lines, never an error.
         if not (pkt.haslayer(UDP) and pkt.haslayer(IP)):
             continue
         ip, udp = pkt[IP], pkt[UDP]
-        payload = bytes(udp.payload)
+        payload = bytes(udp.payload)   # scapy dissected the headers; this is our 24 bytes
         line = (f"[{i}] {ip.src}:{udp.sport} -> {ip.dst}:{udp.dport}  "
                 f"len={len(payload)}B")
+        # REVIEW: only unpack when length matches exactly; other UDP payloads
+        # print a header line only (intended, but worth knowing on a busy capture).
         if len(payload) == struct.calcsize(PACKET_FORMAT):
             counter, ts, can_id, data = struct.unpack(PACKET_FORMAT, payload)
             line += (f"  | counter={counter} ts={ts:.3f} "
@@ -50,6 +57,8 @@ def main(path, dbc_path=None):
                     pretty = "  ".join(f"{k}={v}" for k, v in decoded.items())
                     line += f"\n      -> {pretty}"
                 except KeyError:
+                    # REVIEW: only catches an unknown can_id. A malformed/short
+                    # `data` would raise a different error and not be swallowed.
                     line += "\n      -> (id not in DBC)"
         print(line)
 
