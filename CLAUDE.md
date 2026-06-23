@@ -58,6 +58,31 @@ and inspect it in Wireshark.
 extensions: multiple CAN ids / a richer DBC, a live DBC-decoding receiver,
 replaying a real recorded log, or carrying the log timestamp on the wire.
 
+### Extension: raw bus-logging MDF (real-recorder flavor)
+
+Beyond the decoded-signal `.mf4` Phase 3/4 generate, the pipeline now also
+handles **raw CAN bus-logging MDFs** — the kind a real automotive logger
+writes, where each frame is stored verbatim under a structured `CAN_DataFrame`
+channel (`CAN_DataFrame.ID` / `.DataBytes` / `.DLC` sub-channels) instead of
+pre-decoded signals.
+
+- **Detection is by content, not suffix.** `mdf_is_bus_logging(path)` (in both
+  `can_udp_bridge.py` and `read_logs.py`) checks for a `CAN_DataFrame` channel,
+  so a `.mf4` is routed automatically: raw bus logging replays *as-is* (like
+  BLF/ASC, no DBC re-encode), while decoded signals still go through the
+  DBC re-encode path unchanged.
+- **Bridge:** `iter_frames_from_buslog_mdf(path)` reads the raw id+bytes rows
+  and feeds the same `replay()` / `>I d I 8s` payload.
+- **Reader:** `read_logs.read_buslog_mdf(path, db)` lists the raw frames and
+  DBC-decodes them like `read_raw_log`.
+- **Fixture:** `make_sample_logs.write_mdf_buslog` authors `engine_buslog.mf4`
+  from the same EngineData ramp (asammdf `Signal` + a BUS/CAN `Source`, which
+  sets the `FLAG_CG_BUS_EVENT` marker; the same file round-trips through
+  asammdf's `MDF.extract_bus_logging`). Verified end-to-end: bus-logging MF4 →
+  UDP → dumpcap loopback capture (8/8, 0 dropped) → `read_capture.py --dbc`
+  reproduces the 800→3600 ramp, and its frames are byte-identical to
+  `engine.blf`.
+
 ## Payload layout (current warm-up)
 
 Network byte order (`>`): `I` counter, `d` unix timestamp, `I` CAN id, `8s` data.
@@ -86,14 +111,21 @@ Network byte order (`>`): `I` counter, `d` unix timestamp, `I` CAN id, `8s` data
 - `sample.dbc` — Phase 2 hand-authored DBC (Intel + Motorola signals).
 - `dbc_decode.py` — Phase 2 DBC load / decode / encode demo (cantools).
 - `PHASE2.md` — Phase 2 run instructions, decoded sample, and status.
-- `make_sample_logs.py` — Phase 3 log generator (BLF/ASC raw + MF4 signals).
-- `read_logs.py` — Phase 3 log reader (python-can frames + asammdf channels).
-- `engine.blf` / `engine.asc` / `engine_signals.mf4` — generated sample logs.
+- `make_sample_logs.py` — Phase 3 log generator (BLF/ASC raw + MF4 signals +
+  `engine_buslog.mf4` raw bus logging).
+- `read_logs.py` — Phase 3 log reader (python-can frames + asammdf channels;
+  also reads raw bus-logging MDFs and DBC-decodes them).
+- `engine.blf` / `engine.asc` / `engine_signals.mf4` /
+  `engine_buslog.mf4` — generated sample logs (regenerate with
+  `python make_sample_logs.py`).
 - `PHASE3.md` — Phase 3 run instructions and status.
 - `can_udp_bridge.py` — Phase 4 bridge: replay a CAN log over UDP for Wireshark.
 - `phase4_capture.pcapng` — verified loopback capture of a Phase 4 replay.
 - `PHASE4.md` — Phase 4 run/capture instructions and status.
 - `GUIDE.md` — full walkthrough: every script explained + step-by-step run.
+- `DEEPDIVE.md` — conceptual companion to GUIDE.md: the protocol-layer/byte-level
+  *why* behind the pipeline (CAN framing, endianness, struct/serialization,
+  UDP/sockets, encapsulation, packet capture, the seams, and simplifications).
 
 ## Conventions
 
