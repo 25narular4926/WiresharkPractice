@@ -1,4 +1,4 @@
-argparse-addons==0.12.0
+﻿argparse-addons==0.12.0
 asammdf==8.8.18
 attrs==26.1.0
 bitstruct==8.22.1
@@ -12,13 +12,21 @@ deflate==0.8.1
 isal==1.8.0
 lxml==6.1.1
 lz4==4.4.5
+natsort==8.4.0
 numexpr==2.14.1
 numpy==2.4.6
 packaging==26.2
 pandas==3.0.3
+pyqtgraph==0.14.0
+pyqtlet2==0.9.3
+PySide6_Addons==6.11.1
+PySide6_Essentials==6.11.1
+PySide6==6.11.1
 python-can==4.6.1
 python-dateutil==2.9.0.post0
+QtPy==2.4.3
 scapy==2.7.0
+shiboken6==6.11.1
 six==1.17.0
 textparser==0.24.0
 typing_extensions==4.15.0
