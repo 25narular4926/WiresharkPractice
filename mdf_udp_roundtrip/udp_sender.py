@@ -12,14 +12,14 @@ CHANNEL = "EngineSpeed"
 INTERVAL = 0.002
 
 
-def load_signal():
-    with MDF(MDF_PATH) as mdf:
-        sig = mdf.get(CHANNEL)
+def load_signal(mdf_path, channel):
+    with MDF(mdf_path) as mdf:
+        sig = mdf.get(channel)
     return sig.timestamps, sig.samples
 
 
-def main():
-    timestamps, samples = load_signal()
+def main(mdf_path=MDF_PATH, channel=CHANNEL):
+    timestamps, samples = load_signal(mdf_path, channel)
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         for i in range(len(samples)):

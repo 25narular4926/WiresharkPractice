@@ -7,9 +7,9 @@ CHANNEL = "EngineSpeed"
 RECEIVED = "received.csv"
 
 
-def load_input():
-    with MDF(MDF_PATH) as mdf:
-        sig = mdf.get(CHANNEL)
+def load_input(mdf_path, channel):
+    with MDF(mdf_path) as mdf:
+        sig = mdf.get(channel)
     return [(float(t), float(v)) for t, v in zip(sig.timestamps, sig.samples)]
 
 
@@ -22,8 +22,8 @@ def load_output():
     return [(t, v) for _, t, v in rows]
 
 
-def main():
-    inp = load_input()
+def main(mdf_path=MDF_PATH, channel=CHANNEL):
+    inp = load_input(mdf_path, channel)
     out = load_output()
 
     print(f"input samples : {len(inp)}")
