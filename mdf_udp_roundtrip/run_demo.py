@@ -4,6 +4,7 @@ import time
 
 import compare
 import make_mdf
+import plot
 import udp_receiver
 import udp_sender
 
@@ -14,6 +15,8 @@ def main():
                         help="existing MDF file to stream; omit to generate the demo file")
     parser.add_argument("channel", nargs="?", default=make_mdf.CHANNEL,
                         help="channel/signal name to track")
+    parser.add_argument("--plot", action="store_true",
+                        help="plot input vs received signal after comparing")
     args = parser.parse_args()
 
     if args.mdf is None:
@@ -35,6 +38,9 @@ def main():
 
     print()
     compare.main(mdf_path, channel)
+
+    if args.plot:
+        plot.main(mdf_path, channel)
 
 
 if __name__ == "__main__":
